@@ -10,6 +10,7 @@ const socketIo = require("socket.io");
 const Document = require("./models/Document");
 const chatRoutes = require("./routes/chatRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const cors = require('cors');
 
 require("./config/passportConfig");
 
@@ -18,6 +19,15 @@ dotenv.config();
 const app = express();
 
 const server = http.createServer(app);
+
+// CORS middleware must be set up before other middleware and routes
+app.use(cors({
+  origin: 'http://localhost:3000',  // React app's URL
+  credentials: true,                // Required for cookies, authorization headers with HTTPS
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed methods
+  allowedHeaders: ['Content-Type', 'Authorization'] // Allowed headers
+}));
+
 const io = socketIo(server, { cors: { origin: "*" } });
 
 // Middleware for parsing JSON and handling cookies
@@ -80,6 +90,17 @@ io.on("connection", (socket) => {
     const newChat = new Chat({ documentId, user, message });
     await newChat.save();
     io.to(documentId).emit("chatUpdate", newChat);
+  });
+
+  socket.on("documentChange", (data) => {
+    socket.to(data.id).emit("documentUpdated", data.content);
+  });
+
+  socket.on("sendMessage", (data) => {
+    io.to(data.documentId).emit("chatMessage", {
+      user: socket.user?.name || "Anonymous",
+      text: data.message,
+    });
   });
 
   socket.on("disconnect", () => {

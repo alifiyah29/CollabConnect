@@ -1,6 +1,8 @@
 const express = require('express');
 const Document = require('../models/Document');
 const { getDocumentById, updateDocument } = require('../controllers/documentController');
+const isAuthenticated = require('../middleware/auth');
+
 
 const router = express.Router();
 
@@ -40,5 +42,7 @@ router.get('/:id', getDocumentById);
 // });
 
 router.put('/:id', updateDocument);
+
+router.use(isAuthenticated);
 
 module.exports = router;
