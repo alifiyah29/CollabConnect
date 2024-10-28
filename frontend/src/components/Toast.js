@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export const Toast = ({ message, type = 'success', duration = 3000, onClose }) => {
+const Toast = ({ message, type = 'success', duration = 3000, onClose }) => {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
@@ -22,3 +22,5 @@ export const Toast = ({ message, type = 'success', duration = 3000, onClose }) =
     </div>
   );
 };
+
+export default Toast; 

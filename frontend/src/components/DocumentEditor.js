@@ -1,55 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import io from 'socket.io-client';
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import io from "socket.io-client";
+import Toast from "./Toast";
 
 const DocumentEditor = () => {
   const { id } = useParams();
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState("");
   const [socket, setSocket] = useState(null);
   const [collaborators, setCollaborators] = useState([]);
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
+  const [newMessage, setNewMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   useEffect(() => {
-    const newSocket = io('http://localhost:5000');
+    const newSocket = io("http://localhost:5000");
     setSocket(newSocket);
 
-    newSocket.emit('joinDocument', id);
+    newSocket.emit("joinDocument", id);
 
-    newSocket.on('documentData', (data) => {
+    newSocket.on("documentData", (data) => {
       setContent(data.content);
       setCollaborators(data.collaborators);
     });
 
-    newSocket.on('documentUpdated', (newContent) => {
+    newSocket.on("documentUpdated", (newContent) => {
       setContent(newContent);
     });
 
-    newSocket.on('userJoined', (user) => {
-      setCollaborators(prev => [...prev, user]);
+    newSocket.on("userJoined", (user) => {
+      setCollaborators((prev) => [...prev, user]);
     });
 
-    newSocket.on('userLeft', (userId) => {
-      setCollaborators(prev => prev.filter(user => user.id !== userId));
+    newSocket.on("userLeft", (userId) => {
+      setCollaborators((prev) => prev.filter((user) => user.id !== userId));
     });
 
-    newSocket.on('chatMessage', (message) => {
-      setMessages(prev => [...prev, message]);
+    newSocket.on("chatMessage", (message) => {
+      setMessages((prev) => [...prev, message]);
     });
 
     return () => {
-      newSocket.emit('leaveDocument', id);
+      newSocket.emit("leaveDocument", id);
       newSocket.disconnect();
     };
-  }, [id]);
+  }, [id]); // Run only when 'id' changes
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("notification", (message) => {
+      setToastMessage(message);
+    });
+
+    return () => {
+      socket.off("notification");
+    };
+  }, [socket]); // Now runs only when socket changes
 
   const handleContentChange = (e) => {
     const newContent = e.target.value;
     setContent(newContent);
-    socket.emit('documentChange', { id, content: newContent });
-    
-    // Auto-save functionality
+    socket.emit("documentChange", { id, content: newContent });
+
     setSaving(true);
     setTimeout(() => {
       setSaving(false);
@@ -59,19 +72,21 @@ const DocumentEditor = () => {
   const sendMessage = (e) => {
     e.preventDefault();
     if (newMessage.trim()) {
-      socket.emit('sendMessage', { documentId: id, message: newMessage });
-      setNewMessage('');
+      socket.emit("sendMessage", { documentId: id, message: newMessage });
+      setNewMessage("");
     }
   };
 
   return (
     <div className="flex h-screen">
-      {/* Main Editor */}
+      {toastMessage && (
+        <Toast message={toastMessage} onClose={() => setToastMessage("")} />
+      )}
       <div className="flex-1 p-4">
         <div className="mb-2 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Document: {id}</h1>
           <span className="text-sm text-gray-500">
-            {saving ? 'Saving...' : 'All changes saved'}
+            {saving ? "Saving..." : "All changes saved"}
           </span>
         </div>
         <textarea
@@ -81,9 +96,7 @@ const DocumentEditor = () => {
         />
       </div>
 
-      {/* Sidebar */}
       <div className="w-80 border-l p-4">
-        {/* Collaborators Section */}
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-2">Collaborators</h2>
           <ul>
@@ -96,7 +109,6 @@ const DocumentEditor = () => {
           </ul>
         </div>
 
-        {/* Chat Section */}
         <div className="h-[calc(100vh-400px)]">
           <h2 className="text-lg font-semibold mb-2">Chat</h2>
           <div className="h-[calc(100%-100px)] overflow-y-auto mb-4">
